@@ -8,9 +8,17 @@ st.set_page_config(page_title="Dashboard Năng Suất & Kết Quả Khảo Sát 
 
 st.markdown("""
     <style>
+    /* Ẩn toàn bộ dấu vết Streamlit Header/Menu */
     header {visibility: hidden !important;}
     #MainMenu {visibility: hidden !important;}
     footer {visibility: hidden !important;}
+    
+    /* Ép nền trắng tuyệt đối cho Container chính và Sidebar (Light Theme override) */
+    [data-testid='stAppViewContainer'] { background-color: white !important; color: black !important; }
+    [data-testid='stSidebar'] { background-color: #f8f9fa !important; }
+    
+    /* Ép màu chữ */
+    .stMarkdown, .stText, h1, h2, h3, p { color: #111111 !important; }
     
     /* Thiết kế form card KPI chuyên nghiệp theo yêu cầu */
     div[data-testid="metric-container"] {

@@ -109,56 +109,65 @@ if df.empty:
 st.title("☁️ Dashboard Năng Suất & Kết Quả Khảo Sát Sale")
 st.markdown("---")
 
-# 3. SIDEBAR: LỌC LIÊN HOÀN (DYNAMIC CASCADING CROSS-FILTERS)
+
+# 3. SIDEBAR: LỌC LIÊN HOÀN (DYNAMIC CASCADING CROSS-FILTERS WITH STATE MANAGEMENT)
 st.sidebar.markdown("### 🎯 Phễu Quản Trị")
 
-def get_filter_opts(col_name, current_val, exclude_col=None):
-    temp_df = df.copy()
-    if exclude_col != 'Phòng' and st.session_state.get('sel_phong', 'Tất cả') != 'Tất cả':
-        temp_df = temp_df[temp_df['Phòng'].astype(str) == st.session_state.get('sel_phong', 'Tất cả')]
-    if exclude_col != 'Tháng' and st.session_state.get('sel_thang', 'Tất cả') != 'Tất cả':
-        temp_df = temp_df[temp_df['Tháng'].astype(str) == st.session_state.get('sel_thang', 'Tất cả')]
-    if exclude_col != 'Team' and st.session_state.get('sel_team', 'Tất cả') != 'Tất cả':
-        temp_df = temp_df[temp_df['Team'].astype(str) == st.session_state.get('sel_team', 'Tất cả')]
-    if exclude_col != 'Leader' and st.session_state.get('sel_leader', 'Tất cả') != 'Tất cả':
-        temp_df = temp_df[temp_df['Leader'].astype(str) == st.session_state.get('sel_leader', 'Tất cả')]
-    if exclude_col != 'Search_Name' and st.session_state.get('sel_nv', 'Tất cả') != 'Tất cả':
-        temp_df = temp_df[temp_df['Search_Name'].astype(str) == st.session_state.get('sel_nv', 'Tất cả')]
-        
-    opts = ["Tất cả"] + sorted(list(temp_df[col_name].astype(str).unique()))
-    
-    idx = 0
-    if current_val in opts:
-        idx = opts.index(current_val)
-    # Index=0 luôn là dự phòng 'Tất cả' để fix các lỗi xung đột State
-    return opts, idx
+# Khai báo State khởi tạo nếu chưa có
+for key in ['sel_phong', 'sel_thang', 'sel_team', 'sel_leader', 'sel_nv']:
+    if key not in st.session_state:
+        st.session_state[key] = 'Tất cả'
 
-# Render Widgets
-phong_opts, phong_idx = get_filter_opts('Phòng', st.session_state.get('sel_phong', 'Tất cả'), 'Phòng')
-selected_phong = st.sidebar.selectbox("🏢 1. Chọn Phòng", phong_opts, index=phong_idx, key='sel_phong')
+def reset_filters():
+    for key in ['sel_phong', 'sel_thang', 'sel_team', 'sel_leader', 'sel_nv']:
+        st.session_state[key] = 'Tất cả'
 
-thang_opts, thang_idx = get_filter_opts('Tháng', st.session_state.get('sel_thang', 'Tất cả'), 'Tháng')
-selected_thang = st.sidebar.selectbox("📅 2. Chọn Tháng", thang_opts, index=thang_idx, key='sel_thang')
+st.sidebar.button("🔄 Reset Bộ Lọc", on_click=reset_filters, use_container_width=True)
 
-team_opts, team_idx = get_filter_opts('Team', st.session_state.get('sel_team', 'Tất cả'), 'Team')
-selected_team = st.sidebar.selectbox("👥 3. Chọn Team", team_opts, index=team_idx, key='sel_team')
+# Hàm lấy Option cho một Filter dựa trên trạng thái của các Filter khác
+def get_base_opts(col_name, session_key):
+    temp = df.copy()
+    if session_key != 'sel_phong' and st.session_state['sel_phong'] != 'Tất cả':
+        temp = temp[temp['Phòng'].astype(str) == st.session_state['sel_phong']]
+    if session_key != 'sel_thang' and st.session_state['sel_thang'] != 'Tất cả':
+        temp = temp[temp['Tháng'].astype(str) == st.session_state['sel_thang']]
+    if session_key != 'sel_team' and st.session_state['sel_team'] != 'Tất cả':
+        temp = temp[temp['Team'].astype(str) == st.session_state['sel_team']]
+    if session_key != 'sel_leader' and st.session_state['sel_leader'] != 'Tất cả':
+        temp = temp[temp['Leader'].astype(str) == st.session_state['sel_leader']]
+    if session_key != 'sel_nv' and st.session_state['sel_nv'] != 'Tất cả':
+        temp = temp[temp['Search_Name'].astype(str) == st.session_state['sel_nv']]
+    return ["Tất cả"] + sorted(list(temp[col_name].astype(str).unique()))
 
-leader_opts, leader_idx = get_filter_opts('Leader', st.session_state.get('sel_leader', 'Tất cả'), 'Leader')
-selected_leader = st.sidebar.selectbox("👨‍💼 4. Chọn Trưởng Nhóm", leader_opts, index=leader_idx, key='sel_leader')
+# Xử lý vòng lặp tính toán tự động điền (Auto-fill Logic Bubble Setup)
+# Chạy 3 vòng lặp càn quét để chắc chắn các phụ thuộc 2 chiều đều được tự động điền
+for _ in range(3):
+    for k, col in [('sel_phong', 'Phòng'), ('sel_thang', 'Tháng'), ('sel_team', 'Team'), ('sel_leader', 'Leader'), ('sel_nv', 'Search_Name')]:
+        opts = get_base_opts(col, k)
+        # Nếu lựa chọn hiện tại bị loại khỏi options hợp lệ -> Trả về Tất cả
+        if st.session_state[k] not in opts:
+            st.session_state[k] = 'Tất cả'
+        # Trường hợp chỉ còn 1 Option duy nhất (vì Default array có ["Tất cả", Option 1])
+        if len(opts) == 2 and st.session_state[k] == 'Tất cả':
+            st.session_state[k] = opts[1]
 
-nv_opts, nv_idx = get_filter_opts('Search_Name', st.session_state.get('sel_nv', 'Tất cả'), 'Search_Name')
-selected_nv = st.sidebar.selectbox("👤 5. Chọn Nhân viên", nv_opts, index=nv_idx, key='sel_nv')
+# Render Widget có khoá SessionState
+st.sidebar.selectbox("🏢 1. Chọn Phòng", get_base_opts('Phòng', 'sel_phong'), key='sel_phong')
+st.sidebar.selectbox("📅 2. Chọn Tháng", get_base_opts('Tháng', 'sel_thang'), key='sel_thang')
+st.sidebar.selectbox("👥 3. Chọn Team", get_base_opts('Team', 'sel_team'), key='sel_team')
+st.sidebar.selectbox("👨‍💼 4. Chọn Trưởng Nhóm", get_base_opts('Leader', 'sel_leader'), key='sel_leader')
+st.sidebar.selectbox("👤 5. Chọn Nhân viên", get_base_opts('Search_Name', 'sel_nv'), key='sel_nv')
 
 # Update Active DF
 filtered_df = df.copy()
-if selected_phong != 'Tất cả': filtered_df = filtered_df[filtered_df['Phòng'].astype(str) == selected_phong]
-if selected_thang != 'Tất cả': filtered_df = filtered_df[filtered_df['Tháng'].astype(str) == selected_thang]
-if selected_team != 'Tất cả': filtered_df = filtered_df[filtered_df['Team'].astype(str) == selected_team]
-if selected_leader != 'Tất cả': filtered_df = filtered_df[filtered_df['Leader'].astype(str) == selected_leader]
-if selected_nv != 'Tất cả': filtered_df = filtered_df[filtered_df['Search_Name'].astype(str) == selected_nv]
-
+if st.session_state['sel_phong'] != 'Tất cả': filtered_df = filtered_df[filtered_df['Phòng'].astype(str) == st.session_state['sel_phong']]
+if st.session_state['sel_thang'] != 'Tất cả': filtered_df = filtered_df[filtered_df['Tháng'].astype(str) == st.session_state['sel_thang']]
+if st.session_state['sel_team'] != 'Tất cả': filtered_df = filtered_df[filtered_df['Team'].astype(str) == st.session_state['sel_team']]
+if st.session_state['sel_leader'] != 'Tất cả': filtered_df = filtered_df[filtered_df['Leader'].astype(str) == st.session_state['sel_leader']]
+if st.session_state['sel_nv'] != 'Tất cả': filtered_df = filtered_df[filtered_df['Search_Name'].astype(str) == st.session_state['sel_nv']]
 
 total_staff = len(filtered_df)
+
 
 # 4. KHU VỰC KPI METRICS
 st.subheader("📌 Tổng Quan KPI")
@@ -175,6 +184,15 @@ col4.metric("⚖️ Trung Bình", f"{calculate_percent('Trung bình'):.1f}%")
 col5.metric("🚨 Yếu", f"{calculate_percent('Yếu'):.1f}%")
 
 
+# TÍNH PIVOT DF TRƯỚC ĐỂ DÙNG CHUNG CHO CẢ TẦNG 4 VÀ BIỂU ĐỒ BÊN DƯỚI
+cat_types = ['Giỏi', 'Khá', 'Trung bình', 'Yếu']
+pivot_count = pd.crosstab(filtered_df['Team'], filtered_df['Đánh giá_Clean'])
+for c in cat_types:
+    if c not in pivot_count.columns: pivot_count[c] = 0
+pivot_count = pivot_count[['Giỏi', 'Khá', 'Trung bình', 'Yếu']]
+pivot_percent = pivot_count.div(pivot_count.sum(axis=1), axis=0) * 100
+
+
 # 5. CÂY LOGIC INSIGHTS NHẬN ĐỊNH TỰ ĐỘNG
 st.markdown("### 💡 Nhận định tự động (Insights)")
 def generate_insights(df_filtered, sel_team, sel_leader, sel_employee):
@@ -183,62 +201,57 @@ def generate_insights(df_filtered, sel_team, sel_leader, sel_employee):
         st.info("Không đủ dữ liệu để tạo insights.")
         return
     
-    # Tính cơ sở tỷ lệ toàn cục view hiện tại
-    gioi_rate = (df_filtered['Đánh giá_Clean'] == 'Giỏi').sum() / staff_count * 100
-    bad_rate = ((df_filtered['Đánh giá_Clean'] == 'Trung bình').sum() + (df_filtered['Đánh giá_Clean'] == 'Yếu').sum()) / staff_count * 100
-    
     # TẦNG 1: CÁ NHÂN
     if sel_employee != "Tất cả":
         row = df_filtered.iloc[0]
         diem = row.get('Total points', 0)
         danh_gia = str(row.get('Đánh giá_Clean', 'Trống'))
         ten_nv = row.get('Họ và tên đầy đủ', sel_employee)
+        ten_team = row.get('Team', 'Không xác định')
         
         if danh_gia in ['Giỏi', 'Khá']:
-            st.success(f"🌟 **Biểu dương:** Nhân viên **{ten_nv}** đạt **{diem}** điểm (Xếp loại: **{danh_gia}**). Kỹ năng thao tác hệ thống RSA Ecom rất tốt!")
+            st.success(f"🌟 **Biểu dương:** Nhân viên **{ten_nv}** (Team {ten_team}) đạt **{diem}** điểm - Xếp loại **{danh_gia}**. Rất xuất sắc!")
         elif danh_gia in ['Trung bình', 'Yếu']:
-            st.warning(f"⚠️ **Lưu ý:** Nhân viên **{ten_nv}** đang xếp loại **{danh_gia}**. Cần training lại ngay các thao tác xử lý lỗi trên web/app và chính sách Voucher.")
+            st.warning(f"⚠️ **Lưu ý:** Nhân viên **{ten_nv}** (Team {ten_team}) đang xếp loại **{danh_gia}**. Cần training lại ngay các thao tác xử lý lỗi trên web/app và chính sách Voucher.")
         else:
-            st.info(f"Nhân viên **{ten_nv}** xếp loại: {danh_gia}")
+            st.info(f"Nhân viên **{ten_nv}** (Team {ten_team}) xếp loại: {danh_gia}")
         return
+
+    # Tính cơ sở tỷ lệ toàn cục view hiện tại (Chỉ dùng cho Tầng 2 & 3)
+    gioi_rate = (df_filtered['Đánh giá_Clean'] == 'Giỏi').sum() / staff_count * 100
+    bad_rate = ((df_filtered['Đánh giá_Clean'] == 'Trung bình').sum() + (df_filtered['Đánh giá_Clean'] == 'Yếu').sum()) / staff_count * 100
 
     # TẦNG 2: LEADER
     if sel_leader != "Tất cả":
         khen = False
         if gioi_rate >= 50.0:
-            st.success(f"🌟 **Biểu dương:** Nhóm của Leader **{sel_leader}** có tới **{gioi_rate:.1f}%** nhân sự đạt loại Giỏi.")
+            st.success(f"🌟 **Biểu dương:** Nhóm của Leader **{sel_leader}** có tới **{gioi_rate:.1f}%** nhân sự đạt loại Giỏi. Nhóm đang nắm rất vững thao tác hệ thống và chính sách bán hàng!")
             khen = True
             
         if bad_rate >= 10.0:
-            st.warning(f"⚠️ **Cảnh báo vận hành:** Nhóm của Leader **{sel_leader}** đang có tỷ lệ Trung bình/Yếu là **{bad_rate:.1f}%**. Leader cần rà soát lại kết quả đào tạo.")
+            st.warning(f"⚠️ **Cảnh báo vận hành:** Nhóm của Leader **{sel_leader}** đang có tỷ lệ Trung bình/Yếu lên tới **{bad_rate:.1f}%**. Leader cần khẩn trương training lại cho nhóm về các thao tác xử lý lỗi trên RSA Ecom, quy định áp dụng Voucher/Flash Sale và chính sách điểm thưởng để tránh sai sót đơn hàng.")
             khen = True
             
         if not khen:
-            st.info(f"Hiệu suất nhóm của Leader {sel_leader} ở mức ổn định chung.")
+            st.info(f"Hiệu suất nhóm của Leader {sel_leader} ở mức an toàn ổn định.")
         return
             
     # TẦNG 3: TEAM
     if sel_team != "Tất cả":
         khen = False
         if gioi_rate >= 50.0:
-            st.success(f"🌟 **Biểu dương:** Team **{sel_team}** có tới **{gioi_rate:.1f}%** nhân sự đạt loại Giỏi.")
+            st.success(f"🌟 **Biểu dương:** Team **{sel_team}** có tới **{gioi_rate:.1f}%** nhân sự đạt loại Giỏi. Team đang nắm rất vững thao tác hệ thống và chính sách bán hàng!")
             khen = True
             
         if bad_rate >= 10.0:
-            st.warning(f"⚠️ **Cảnh báo vận hành:** Team **{sel_team}** đang có tỷ lệ Trung bình/Yếu là **{bad_rate:.1f}%**. Leader cần rà soát lại kết quả đào tạo.")
+            st.warning(f"⚠️ **Cảnh báo vận hành:** Team **{sel_team}** đang có tỷ lệ Trung bình/Yếu lên tới **{bad_rate:.1f}%**. Leader cần khẩn trương training lại cho team về các thao tác xử lý lỗi trên RSA Ecom, quy định áp dụng Voucher/Flash Sale và chính sách điểm thưởng để tránh sai sót đơn hàng.")
             khen = True
             
         if not khen:
             st.info(f"Hoạt động của Team {sel_team} ở mức ổn định, chưa có dấu hiệu đột phá hay rủi ro lớn.")
         return
         
-    # TẦNG 4: TỔNG QUAN
-    cat_types = ['Giỏi', 'Khá', 'Trung bình', 'Yếu']
-    pivot_count = pd.crosstab(df_filtered['Team'], df_filtered['Đánh giá_Clean'])
-    for c in cat_types:
-        if c not in pivot_count.columns: pivot_count[c] = 0
-    pivot_percent = pivot_count.div(pivot_count.sum(axis=1), axis=0) * 100
-    
+    # TẦNG 4: TỔNG QUAN (Áp dụng đọc trên Base Pivot của toàn bộ phòng)
     if len(pivot_percent) > 0:
         if 'Giỏi' in pivot_percent.columns:
             top_gioi_teams = pivot_percent[pivot_percent['Giỏi'] >= 50.0]
@@ -254,21 +267,16 @@ def generate_insights(df_filtered, sel_team, sel_leader, sel_employee):
                 st.warning(f"⚠️ **Cảnh báo vận hành:** Team **{team}** đang có tỷ lệ Trung bình/Yếu lên tới **{row['Bad_Rate']:.1f}%**. Leader cần khẩn trương training lại cho team về các thao tác xử lý lỗi trên RSA Ecom, quy định áp dụng Voucher/Flash Sale và chính sách điểm thưởng để tránh sai sót đơn hàng.")
         
         if ('Giỏi' not in pivot_percent.columns or pivot_percent['Giỏi'].max() < 50.0) and bad_teams.empty:
-            st.info("Hệ thống chưa tìm thấy dấu hiệu đột biến lớn nào từ bộ lọc hiện hành. Các Team đang giữ vững nhịp điệu.")
+            st.info("Hệ thống chưa tìm thấy dấu hiệu đột biến quy mô lớn nào từ dữ liệu hiện hành.")
 
-generate_insights(filtered_df, selected_team, selected_leader, selected_nv)
+# Truyền Param theo st.session_state
+generate_insights(filtered_df, st.session_state['sel_team'], st.session_state['sel_leader'], st.session_state['sel_nv'])
 
 st.markdown("<hr>", unsafe_allow_html=True)
 
 
 # 6. KHU VỰC PHÂN TÍCH TEAM LEVEL (CROSSTAB)
 st.subheader("👥 Phân Tích Chất Lượng Nội Bộ Theo Team")
-cat_types = ['Giỏi', 'Khá', 'Trung bình', 'Yếu']
-pivot_count = pd.crosstab(filtered_df['Team'], filtered_df['Đánh giá_Clean'])
-for c in cat_types:
-    if c not in pivot_count.columns: pivot_count[c] = 0
-pivot_count = pivot_count[['Giỏi', 'Khá', 'Trung bình', 'Yếu']]
-pivot_percent = pivot_count.div(pivot_count.sum(axis=1), axis=0) * 100
 
 if total_staff > 0:
     col_table1, col_table2 = st.columns(2)

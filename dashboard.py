@@ -8,8 +8,9 @@ st.set_page_config(page_title="Dashboard Năng Suất & Kết Quả Khảo Sát 
 
 st.markdown("""
     <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
+    header {visibility: hidden !important;}
+    #MainMenu {visibility: hidden !important;}
+    footer {visibility: hidden !important;}
     
     /* Thiết kế form card KPI chuyên nghiệp theo yêu cầu */
     div[data-testid="metric-container"] {

@@ -97,7 +97,7 @@ def load_and_preprocess_data(file_path):
 
 
 # === ĐỌC DỮ LIỆU ===
-FILE_PATH = r"c:\Users\User\Documents\ks\Kết quả KS Sale.xlsx"
+FILE_PATH = "Kết quả KS Sale.xlsx"
 
 if not os.path.exists(FILE_PATH):
     st.error(f"⚠️ Không tìm thấy file gốc tại `{FILE_PATH}`")

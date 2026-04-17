@@ -4,13 +4,20 @@ import plotly.express as px
 import os
 
 # 1. CẤU HÌNH TRANG VÀ CSS
-st.set_page_config(page_title="Dashboard Năng Suất & Kết Quả Khảo Sát Sale", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Dashboard Năng Suất & Kết Quả Khảo Sát Sale", layout="wide")
 
 st.markdown("""
     <style>
-    /* Chỉ ẩn menu thừa (Toolbar/Deploy), giữ lại Header mặc định để nút Sidebar hoạt động mượt mà */
-    [data-testid="stToolbar"] {visibility: hidden !important;}
-    #MainMenu {visibility: hidden !important;}
+    /* Ẩn các nút GitHub, Deploy, Menu ở góc phải */
+    [data-testid="stAppToolbar"] {
+        visibility: hidden !important;
+    }
+    /* Ép cái nút mở Sidebar (mũi tên) luôn phải hiển thị để tôi bấm được */
+    button[data-testid="stSidebarCollapse"] {
+        visibility: visible !important;
+        color: #111111 !important;
+    }
+    /* Giấu dòng chữ Streamlit dưới chân trang */
     footer {visibility: hidden !important;}
     
     /* Ép nền trắng tuyệt đối cho Container chính và Sidebar (Light Theme override) */

@@ -8,8 +8,10 @@ st.set_page_config(page_title="Dashboard Năng Suất & Kết Quả Khảo Sát 
 
 st.markdown("""
     <style>
-    /* Ẩn toàn bộ dấu vết Streamlit Header/Menu */
+    /* Ẩn toàn bộ dấu vết Streamlit Header/Menu nhưng giữ lại nút mở Sidebar */
     header {visibility: hidden !important;}
+    [data-testid='stSidebarCollapse'] {visibility: visible !important;}
+    [data-testid='collapsedControl'] {visibility: visible !important;}
     #MainMenu {visibility: hidden !important;}
     footer {visibility: hidden !important;}
     

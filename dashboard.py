@@ -140,14 +140,35 @@ def get_base_opts(col_name, session_key):
     return ["Tất cả"] + sorted(list(temp[col_name].astype(str).unique()))
 
 # Xử lý vòng lặp tính toán tự động điền (Auto-fill Logic Bubble Setup)
-# Chạy 3 vòng lặp càn quét để chắc chắn các phụ thuộc 2 chiều đều được tự động điền
-for _ in range(3):
+# Đảm bảo auto-fill trực tiếp từ dữ liệu thật
+if st.session_state['sel_nv'] != 'Tất cả':
+    # Auto-fill Leader & Team & Phòng & Tháng nếu chỉ có 1
+    nv_data = df[df['Search_Name'] == st.session_state['sel_nv']]
+    if not nv_data.empty:
+        for c, k in [('Leader', 'sel_leader'), ('Team', 'sel_team'), ('Tháng', 'sel_thang'), ('Phòng', 'sel_phong')]:
+            ops = nv_data[c].dropna().unique()
+            if len(ops) == 1: st.session_state[k] = str(ops[0])
+            
+elif st.session_state['sel_leader'] != 'Tất cả':
+    leader_data = df[df['Leader'] == st.session_state['sel_leader']]
+    if not leader_data.empty:
+        # Lấy trực tiếp Team đầu tiên của Leader này từ dataframe (đảm bảo tính real-time, không hardcode)
+        teams = [t for t in leader_data['Team'].dropna().unique() if t != 'Unknown' and str(t).strip() != '']
+        if len(teams) > 0: 
+            st.session_state['sel_team'] = str(teams[0])
+        elif len(leader_data['Team'].dropna().unique()) > 0:
+            st.session_state['sel_team'] = str(leader_data['Team'].dropna().unique()[0])
+            
+        phongs = leader_data['Phòng'].dropna().unique()
+        if len(phongs) == 1: 
+            st.session_state['sel_phong'] = str(phongs[0])
+
+# Vòng lặp dọn dẹp các Filter không tồn tại do mâu thuẫn
+for _ in range(2):
     for k, col in [('sel_phong', 'Phòng'), ('sel_thang', 'Tháng'), ('sel_team', 'Team'), ('sel_leader', 'Leader'), ('sel_nv', 'Search_Name')]:
         opts = get_base_opts(col, k)
-        # Nếu lựa chọn hiện tại bị loại khỏi options hợp lệ -> Trả về Tất cả
         if st.session_state[k] not in opts:
             st.session_state[k] = 'Tất cả'
-        # Trường hợp chỉ còn 1 Option duy nhất (vì Default array có ["Tất cả", Option 1])
         if len(opts) == 2 and st.session_state[k] == 'Tất cả':
             st.session_state[k] = opts[1]
 
@@ -209,12 +230,14 @@ def generate_insights(df_filtered, sel_team, sel_leader, sel_employee):
         ten_nv = row.get('Họ và tên đầy đủ', sel_employee)
         ten_team = row.get('Team', 'Không xác định')
         
-        if danh_gia in ['Giỏi', 'Khá']:
-            st.success(f"🌟 **Biểu dương:** Nhân viên **{ten_nv}** (Team {ten_team}) đạt **{diem}** điểm - Xếp loại **{danh_gia}**. Rất xuất sắc!")
+        if danh_gia == 'Giỏi':
+            st.success(f"🌟 **Biểu dương:** Nhân viên **{ten_nv}** đạt **{diem}** điểm - Xếp loại **Giỏi**. Rất xuất sắc! Tiếp tục phát huy phong độ nhé.")
+        elif danh_gia == 'Khá':
+            st.info(f"👍 **Khích lệ:** Nhân viên **{ten_nv}** đạt mức Khá. Một kết quả tốt, cần nỗ lực thêm chút nữa để đạt mốc Giỏi nhé!")
         elif danh_gia in ['Trung bình', 'Yếu']:
-            st.warning(f"⚠️ **Lưu ý:** Nhân viên **{ten_nv}** (Team {ten_team}) đang xếp loại **{danh_gia}**. Cần training lại ngay các thao tác xử lý lỗi trên web/app và chính sách Voucher.")
+            st.warning(f"⚠️ **Cảnh báo:** Nhân viên **{ten_nv}** hiện ở mức **{danh_gia}**. Cần yêu cầu nhân viên này tham gia đào tạo lại nghiệp vụ ngay.")
         else:
-            st.info(f"Nhân viên **{ten_nv}** (Team {ten_team}) xếp loại: {danh_gia}")
+            st.info(f"Nhân viên **{ten_nv}** xếp loại: {danh_gia}")
         return
 
     # Tính cơ sở tỷ lệ toàn cục view hiện tại (Chỉ dùng cho Tầng 2 & 3)
